@@ -1304,7 +1304,6 @@ function ThesisProject({ onOpen }: { onOpen: (item: LightboxItem) => void }) {
     "--thesis-texture-opacity": pinkWash * 0.34,
     "--quill-arrival-y": `${(1 - penArrival) * 360}px`,
     "--quill-arrival-scale": 1.34 - penArrival * 0.34,
-    "--quill-arrival-blur": `${(1 - penArrival) * 7}px`,
     "--prompt-arrival-y": `${(1 - promptArrival) * 105}px`,
     "--prompt-arrival-scale": 0.84 + promptArrival * 0.16,
     "--prompt-arrival-opacity": promptArrival,

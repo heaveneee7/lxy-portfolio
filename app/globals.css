@@ -2475,15 +2475,26 @@ main { padding-left: 164px; }
   width: clamp(270px,31vw,430px);
   padding: 0;
   pointer-events: auto;
-  filter: blur(var(--quill-arrival-blur)) drop-shadow(0 34px 26px rgba(41,23,43,.31)) drop-shadow(0 2px 0 rgba(255,255,255,.8));
+  /* Keep the transparent PNG out of Safari's animated filter compositor.
+     Combining blur/drop-shadow with this scroll-linked transform can paint the
+     image's transparent canvas as an opaque white square on GitHub Pages. */
+  filter: none;
   transform: translate(-50%,-50%) translateY(var(--quill-arrival-y)) scale(var(--quill-arrival-scale)) rotate(-5deg);
   transform-origin: 36% 82%;
-  transition: filter .22s ease, transform .2s cubic-bezier(.2,.78,.25,1);
+  transition: transform .2s cubic-bezier(.2,.78,.25,1);
+}
+.thesis-intro-scroll .quill-trigger img {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  background: transparent;
+  filter: none;
 }
 .thesis-intro-scroll .quill-trigger:hover,
 .thesis-intro-scroll .quill-trigger:focus-visible {
   outline: 0;
-  filter: blur(var(--quill-arrival-blur)) drop-shadow(0 0 3px #ff258c) drop-shadow(0 18px 24px rgba(93,39,76,.34));
+  filter: none;
 }
 .thesis-intro-scroll .quill-prompt {
   position: absolute;
@@ -2584,7 +2595,7 @@ html.thesis-intro-focus .cat-sticky { opacity: 0 !important; transition: opacity
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .thesis-intro-scroll .quill-trigger { filter: drop-shadow(0 18px 18px rgba(41,23,43,.24)); transition: none; }
+  .thesis-intro-scroll .quill-trigger { filter: none; transition: none; }
   .thesis-intro-scroll .quill-prompt { transition: none; animation: none; }
   .thesis-project.is-open .thesis-title-panel { animation-duration: .01ms; }
   .thesis-intro-scroll .quill-station.is-writing .quill-trigger { animation-duration: .01ms; animation-delay: 0s; }
