@@ -28,6 +28,40 @@ function useReducedMotion() {
   return reduced;
 }
 
+function useForegroundReveals() {
+  useEffect(() => {
+    const selector = [
+      ".project-section > .section-head",
+      ".petroleum-layout",
+      ".video-frame",
+      ".book-stage",
+      ".thesis-research-board",
+      ".thesis-archive-board",
+      ".blender-grid",
+      ".about-photo",
+      ".about-copy",
+    ].join(",");
+    const nodes = Array.from(document.querySelectorAll<HTMLElement>(selector));
+    if (!nodes.length) return;
+    document.documentElement.classList.add("reveal-ready");
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add("is-revealed");
+        observer.unobserve(entry.target);
+      });
+    }, { rootMargin: "0px 0px -12% 0px", threshold: 0.12 });
+    nodes.forEach((node, index) => {
+      node.dataset.reveal = index % 3 === 1 ? "soft-left" : "rise";
+      observer.observe(node);
+    });
+    return () => {
+      observer.disconnect();
+      document.documentElement.classList.remove("reveal-ready");
+    };
+  }, []);
+}
+
 function AsciiBackdrop() {
   return (
     <pre className="ascii-backdrop" aria-hidden="true">{`+---------------- LXY::PORTFOLIO_${PORTFOLIO_VERSION} ----------------+
@@ -49,6 +83,39 @@ function MagneticCurtain({ onMetal, soundOn }: { onMetal: (strength?: number) =>
   const pointerRef = useRef({ x: -999, y: -999, vx: 0, vy: 0, active: false });
   const hoveredRef = useRef(-1);
   const reduced = useReducedMotion();
+  const [catReachProgress, setCatReachProgress] = useState(0);
+  const [catHandoffProgress, setCatHandoffProgress] = useState(0);
+  const [reachIdleFrame, setReachIdleFrame] = useState(0);
+
+  useEffect(() => {
+    if (reduced) return;
+    const timer = window.setInterval(() => setReachIdleFrame((frame) => frame === 0 ? 1 : 0), 820);
+    return () => window.clearInterval(timer);
+  }, [reduced]);
+
+  useEffect(() => {
+    let raf = 0;
+    const update = () => {
+      const area = areaRef.current;
+      if (!area) return;
+      const rect = area.getBoundingClientRect();
+      const next = clamp((innerHeight * .84 - rect.top) / Math.max(rect.height * .7, 1));
+      setCatReachProgress(next);
+      /* Pose timing and scene hand-off are intentionally independent: the
+         cat can hold its upright reach while the toys remain on screen, then
+         disappear only when the chain field itself reaches the next scene. */
+      setCatHandoffProgress(clamp((innerHeight * .48 - rect.bottom) / Math.max(innerHeight * .42, 1)));
+    };
+    const request = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(update); };
+    update();
+    addEventListener("scroll", request, { passive: true });
+    addEventListener("resize", request);
+    return () => {
+      cancelAnimationFrame(raf);
+      removeEventListener("scroll", request);
+      removeEventListener("resize", request);
+    };
+  }, []);
 
   useEffect(() => {
     const area = areaRef.current;
@@ -201,6 +268,21 @@ function MagneticCurtain({ onMetal, soundOn }: { onMetal: (strength?: number) =>
     pointer.active = true;
   };
 
+  /* The cat rises through one pose at a time.  Once upright, frames four and
+     five alternate as a tiny pawing idle; near the section boundary the sixth
+     frame lowers the same cat into the crouch that begins the rooftop route. */
+  const reachPoseProgress = clamp(catReachProgress / 0.58);
+  const reachExitRaw = catHandoffProgress;
+  const reachExit = reachExitRaw * reachExitRaw * (3 - 2 * reachExitRaw);
+  const reachIdle = catReachProgress >= 0.5 && catReachProgress < 0.88 && reachExit < 0.08;
+  const reachFrame = catReachProgress >= 0.88
+    ? 5
+    : reachIdle
+      ? 3 + reachIdleFrame
+      : Math.min(4, Math.round(reachPoseProgress * 4));
+  const reachHandoff = clamp((catReachProgress - 0.82) / 0.18);
+  const reachFrameSrc = (index: number) => `/assets/illustrations/cat-reach-v1/cat-reach-${String(index + 1).padStart(2, "0")}.png`;
+
   return (
     <section className="curtain-section" id="index">
       <div className="section-head curtain-heading">
@@ -232,6 +314,26 @@ function MagneticCurtain({ onMetal, soundOn }: { onMetal: (strength?: number) =>
             <span className="pendant-label"><b>{item.label}</b><small>{item.sub}</small></span>
           </a>
         ))}
+        <div
+          className="index-reach-cat"
+          data-reaching={catReachProgress > .22 && catReachProgress < .96 ? "true" : "false"}
+          data-idle={reachIdle ? "true" : "false"}
+          data-handoff={reachHandoff > .05 ? "true" : "false"}
+          style={{
+            "--index-cat-opacity": 1 - reachExit,
+            "--index-cat-x": `${reachHandoff * 44}px`,
+            "--index-cat-y": `${reachHandoff * -22}px`,
+            "--index-cat-scale": 1 - reachHandoff * .08,
+          } as CSSProperties}
+          aria-hidden="true"
+        >
+          <img src={reachFrameSrc(reachFrame)} alt="" />
+        </div>
+        <div className="index-cat-status" style={{ "--index-cat-opacity": 1 - reachExit } as CSSProperties} aria-hidden="true">
+          <b>PLAYER_01 / BLACK_CAT</b>
+          <span>待机中 · 正在追踪吊坠</span>
+          <i><em /></i>
+        </div>
         <p className="chain-hint">MOVE_FAST::WIND / HOLD_STILL::MAGNET / CLICK::ENTER</p>
       </div>
     </section>
@@ -241,8 +343,11 @@ function MagneticCurtain({ onMetal, soundOn }: { onMetal: (strength?: number) =>
 function ScrollCatWorld({ children }: { children: ReactNode }) {
   const worldRef = useRef<HTMLElement>(null);
   const [progress, setProgress] = useState(0);
+  const [worldEntered, setWorldEntered] = useState(false);
   const [scrollDirection, setScrollDirection] = useState<1 | -1>(1);
   const previousProgressRef = useRef<number | null>(null);
+  const targetProgressRef = useRef(0);
+  const animatedProgressRef = useRef(0);
   const [thesisProgress, setThesisProgress] = useState(0);
   const [newspaperProgress, setNewspaperProgress] = useState(0);
   const [routeAnchors, setRouteAnchors] = useState({ newspaper: 0.24, thesis: 0.7 });
@@ -251,7 +356,7 @@ function ScrollCatWorld({ children }: { children: ReactNode }) {
   useEffect(() => {
     const catFrames = Array.from(
       { length: 12 },
-      (_, index) => `/assets/illustrations/cat-frames-v6-sequence/cat-${String(index + 1).padStart(2, "0")}.png`,
+      (_, index) => `/assets/illustrations/cat-scroll-v7/cat-${String(index + 1).padStart(2, "0")}.png`,
     );
     catFrames.forEach((src) => {
       const frame = new Image();
@@ -262,12 +367,23 @@ function ScrollCatWorld({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let raf = 0;
+    let initialized = false;
+    const animateProgress = () => {
+      const target = targetProgressRef.current;
+      const current = animatedProgressRef.current;
+      const eased = reduced ? target : current + (target - current) * 0.2;
+      const next = Math.abs(target - eased) < 0.000025 ? target : eased;
+      animatedProgressRef.current = next;
+      setProgress(next);
+      if (next !== target) raf = requestAnimationFrame(animateProgress);
+    };
     const update = () => {
       const world = worldRef.current;
       if (!world) return;
       const rect = world.getBoundingClientRect();
       const distance = Math.max(world.offsetHeight - innerHeight, 1);
       const nextProgress = clamp(-rect.top / distance);
+      setWorldEntered(rect.top <= innerHeight * 0.015);
       const previousProgress = previousProgressRef.current;
       if (previousProgress !== null) {
         const delta = nextProgress - previousProgress;
@@ -277,7 +393,15 @@ function ScrollCatWorld({ children }: { children: ReactNode }) {
         if (Math.abs(delta) > 0.00035) setScrollDirection(delta > 0 ? 1 : -1);
       }
       previousProgressRef.current = nextProgress;
-      setProgress(nextProgress);
+      targetProgressRef.current = nextProgress;
+      if (!initialized) {
+        initialized = true;
+        animatedProgressRef.current = nextProgress;
+        setProgress(nextProgress);
+      } else {
+        cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(animateProgress);
+      }
       const anchorAt = (element: HTMLElement | null, fallback: number) => {
         if (!element) return fallback;
         const elementRect = element.getBoundingClientRect();
@@ -306,12 +430,12 @@ function ScrollCatWorld({ children }: { children: ReactNode }) {
           : current
       ));
     };
-    const request = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(update); };
+    const request = () => update();
     update();
     addEventListener("scroll", request, { passive: true });
     addEventListener("resize", request);
     return () => { cancelAnimationFrame(raf); removeEventListener("scroll", request); removeEventListener("resize", request); };
-  }, []);
+  }, [reduced]);
 
   /* One responsive SVG coordinate system owns both position and pose.  The
      newspaper/thesis anchors are measured inside the long page and inserted
@@ -331,12 +455,21 @@ function ScrollCatWorld({ children }: { children: ReactNode }) {
   const moonFade = clamp((thesisProgress - 0.12) / 0.2) * (1 - clamp((thesisProgress - 0.9) / 0.1));
 
   const orbBase = {
-    a: { x: 190, y: 286, r: 116, color: "#6b96c2" },
-    b: { x: 810, y: 190, r: 83, color: "#f05a00" },
-    c: { x: 570, y: 510, r: 132, color: "#faca4c" },
+    a: { x: 190, y: 220, r: 116, color: "#6b96c2" },
+    b: { x: 810, y: 230, r: 83, color: "#f05a00" },
+    c: { x: 755, y: 460, r: 132, color: "#faca4c" },
   } as const;
   const orbIds = ["a", "b", "c"] as const;
   type OrbId = typeof orbIds[number];
+  const circlePulse = (sampleProgress: number, start: number, end: number, strength: number) => {
+    const local = clamp((sampleProgress - start) / Math.max(end - start, .001));
+    return Math.sin(local * Math.PI) * strength;
+  };
+  const circleChoreographyAt = (sampleProgress: number) => Math.max(
+    circlePulse(sampleProgress, .035, .17, .38),
+    circlePulse(sampleProgress, .2, .39, .5),
+    circlePulse(sampleProgress, .43, .61, .34),
+  );
   const orbAt = (id: OrbId, index: number, sampleProgress: number, mergeAmount: number) => {
     const base = orbBase[id];
     const scrollWave = sampleProgress * Math.PI * (5.4 + index * 0.72) + index * 1.7;
@@ -358,8 +491,9 @@ function ScrollCatWorld({ children }: { children: ReactNode }) {
     }
     return { ...base, x: base.x + ox, y: base.y + oy, sx, sy };
   };
+  const circleGather = 1 - (1 - circleChoreographyAt(progress)) * (1 - circleMerge);
   const orbState = Object.fromEntries(orbIds.map((id, index) => (
-    [id, orbAt(id, index, progress, circleMerge)]
+    [id, orbAt(id, index, progress, circleGather)]
   ))) as Record<OrbId, { x: number; y: number; r: number; color: string; sx: number; sy: number }>;
 
   type RouteTarget = "a" | "b" | "c" | "paper" | "thesis";
@@ -410,10 +544,10 @@ function ScrollCatWorld({ children }: { children: ReactNode }) {
        the cat had just reached, producing a conspicuous c -> left -> b and
        b -> left reversal.  The cat still pauses beside the newspaper and on
        the thesis moon, but reaches each one as the next forward landing. */
-    if (target === "paper") return { x: 552, y: 505 };
+    if (target === "paper") return { x: 260, y: 530 };
     if (target === "thesis") return { x: 812, y: 398 };
     const index = orbIds.indexOf(target);
-    const orb = orbAt(target, index, sampleAt, 0);
+    const orb = orbAt(target, index, sampleAt, circleChoreographyAt(sampleAt));
     /* The circles are broad colour fields rather than tiny waypoints.  Land
        on the route-facing side of each field so consecutive jumps form one
        flowing roof-top path and do not waste scroll distance crossing an
@@ -500,7 +634,9 @@ function ScrollCatWorld({ children }: { children: ReactNode }) {
        through the same 180px vertical excursion. */
     const flightHeight = clamp(40 + segmentSpan * 420, 72, 138);
     y = fromPoint.y + (toPoint.y - fromPoint.y) * travel - flightArc * flightHeight;
-    rotate = travelDirection * (4.8 - travel * 8.6);
+    const tangentY = (toPoint.y - fromPoint.y) - (4 - 8 * travel) * flightHeight;
+    const tangentAngle = Math.atan2(tangentY, Math.max(Math.abs(toPoint.x - fromPoint.x), 1)) * (180 / Math.PI);
+    rotate = clamp(tangentAngle * 0.32, -7.5, 7.5);
     activeOrb = rawTravel < 0.24 && (from.target === "a" || from.target === "b" || from.target === "c")
       ? from.target
       : rawTravel > 0.76 && (to.target === "a" || to.target === "b" || to.target === "c")
@@ -515,27 +651,31 @@ function ScrollCatWorld({ children }: { children: ReactNode }) {
     activeOrb = to.target === "a" || to.target === "b" || to.target === "c" ? to.target : "none";
   }
 
+  /* Keep the whole painted cat inside the stage.  Without this guard the
+     flight arc could lift part of the sprite beyond the SVG viewBox, which
+     looked like an incompletely cut-out cat appearing in pieces. */
+  y = clamp(y, 232, 650);
+
   const newspaperSceneActive = newspaperProgress > 0.12 && newspaperProgress < 0.9;
   if (holdTarget) activeOrb = "none";
 
-  /* Twelve coherent raster poses share one canvas.  Pose progress is mapped
-     piece-by-piece so every anatomical phase gets its own scroll distance.
-     The final standing pose blends back to the initial crouch before the next
-     route segment begins; this removes the former 10 -> 0 frame pop. */
-  const airborneSpan = landingStart - takeoffEnd;
+  /* The hand-painted sequence follows an animal rhythm rather than uniform
+     motion: settle, tail lift, crouch, explosive take-off, a long apex hold,
+     descent, landing compression and rebound. The first route begins from the
+     supplied back view; later jumps begin from the relaxed front-facing sit. */
+  /* Keep one readable silhouette through most of a jump.  Cycling through
+     four near-identical airborne stills made the cat advance like a flipbook
+     with missing pages.  Spatial motion is now continuously eased, while the
+     pose changes only inside the compressed take-off and landing beats. */
   const poseStops = [
-    { at: 0, frame: 10 },
-    { at: takeoffEnd * 0.56, frame: 0 },
-    { at: takeoffEnd, frame: 1 },
-    { at: takeoffEnd + airborneSpan * 0.08, frame: 2 },
-    { at: takeoffEnd + airborneSpan * 0.2, frame: 3 },
-    { at: takeoffEnd + airborneSpan * 0.36, frame: 4 },
-    { at: takeoffEnd + airborneSpan * 0.54, frame: 5 },
-    { at: takeoffEnd + airborneSpan * 0.7, frame: 6 },
-    { at: takeoffEnd + airborneSpan * 0.84, frame: 7 },
-    { at: landingStart, frame: 8 },
-    { at: landingStart + (settleEnd - landingStart) * 0.46, frame: 9 },
-    { at: 1, frame: 10 },
+    { at: 0, frame: scene === 0 ? 0 : 8 },
+    { at: takeoffEnd * 0.48, frame: scene === 0 ? 1 : 8 },
+    { at: takeoffEnd * 0.86, frame: 2 },
+    { at: takeoffEnd, frame: 3 },
+    { at: landingStart, frame: 3 },
+    { at: landingStart + (settleEnd - landingStart) * 0.56, frame: 7 },
+    { at: settleEnd, frame: 8 },
+    { at: 1, frame: 8 },
   ] as const;
   let poseIndex = poseStops.length - 2;
   for (let index = 0; index < poseStops.length - 1; index += 1) {
@@ -549,56 +689,79 @@ function ScrollCatWorld({ children }: { children: ReactNode }) {
   const poseMix = smoother(clamp((phase - poseFrom.at) / Math.max(poseTo.at - poseFrom.at, 0.001)));
   const regularBaseFrame = poseFrom.frame;
   const regularNextFrame = poseTo.frame;
-  let baseFrame = thesisHold ? 10 : regularBaseFrame;
-  let nextFrame = thesisHold ? 10 : regularNextFrame;
-  let frameMix = thesisHold ? 0 : poseMix;
-  if (newspaperHold) {
-    /* Arrive standing, ease into the single grooming pose, then return to a
-       stable stance before the next jump.  Grooming exists only at paper. */
-    if (phase < 0.22) {
+  let baseFrame: number = regularBaseFrame;
+  let nextFrame: number = regularNextFrame;
+  let frameMix = poseMix;
+  if (thesisHold) {
+    /* The final thesis hold finishes the reference storyboard: seated breath,
+       a long stretch, then the deliberately exaggerated sleepy yawn. */
+    if (phase < 0.28) {
+      baseFrame = 8;
+      nextFrame = 8;
+      frameMix = 0;
+    } else if (phase < 0.52) {
+      baseFrame = 8;
+      nextFrame = 10;
+      frameMix = smoother((phase - 0.28) / 0.24);
+    } else if (phase < 0.74) {
       baseFrame = 10;
       nextFrame = 11;
-      frameMix = smoother(phase / 0.22);
-    } else if (phase > 0.8) {
-      baseFrame = 11;
-      nextFrame = 10;
-      frameMix = smoother((phase - 0.8) / 0.2);
+      frameMix = smoother((phase - 0.52) / 0.22);
     } else {
       baseFrame = 11;
       nextFrame = 11;
       frameMix = 0;
     }
   }
-  const frameFloat = baseFrame + (nextFrame - baseFrame) * frameMix;
+  if (newspaperHold) {
+    /* The newspaper landing gets the short lick-paw loop from the storyboard;
+       it returns to the same seated pose before the next route segment. */
+    if (phase < 0.22) {
+      baseFrame = 8;
+      nextFrame = 9;
+      frameMix = smoother(phase / 0.22);
+    } else if (phase > 0.8) {
+      baseFrame = 9;
+      nextFrame = 8;
+      frameMix = smoother((phase - 0.8) / 0.2);
+    } else {
+      baseFrame = 9;
+      nextFrame = 9;
+      frameMix = 0;
+    }
+  }
+  /* Long dissolves between very different silhouettes read as two cats. Keep
+     only a brief eight-percent blend around the frame boundary: spatial
+     movement stays continuous, while the animal's outline remains crisp. */
+  const visualFrameMix = smoother(clamp((frameMix - 0.46) / 0.08));
+  /* Never dissolve two silhouettes over one another.  The route itself stays
+     continuously interpolated, while the hand-painted pose advances on the
+     midpoint like a traditional animation exposure sheet.  This removes the
+     detached-tail ghost and the accidental appearance of two cats. */
+  const visibleFrame = visualFrameMix < 0.5 ? baseFrame : nextFrame;
+  const frameFloat = visibleFrame;
   const catMode = newspaperHold ? "groom" : thesisHold ? "moon" : airborne ? "leap" : "crouch";
   const poseHold = Boolean(holdTarget) || (!airborne && phase >= settleEnd);
-  const catFrameSrc = (index: number) => `/assets/illustrations/cat-frames-v6-sequence/cat-${String(index + 1).padStart(2, "0")}.png`;
-  const frameWidth = 174;
-  const frameHeight = 232;
+  const catFrameSrc = (index: number) => `/assets/illustrations/cat-scroll-v7/cat-${String(index + 1).padStart(2, "0")}.png`;
+  const frameWidth = 180;
+  const frameHeight = 240;
   const frameX = -frameWidth / 2;
-  const frameY = -frameHeight * 0.72;
-  const renderCatFrames = () => (
-    <g transform={`translate(${x} ${y}) rotate(${rotate}) scale(${facingDirection} 1)`}>
+  const frameY = -frameHeight * .94;
+  const compression = Math.max(launchCompression, landingCompression);
+  const catScaleX = 1 + compression * 0.075;
+  const catScaleY = 1 - compression * 0.09;
+  const renderRiggedCat = () => (
+    <g transform={`translate(${x} ${y}) rotate(${rotate}) scale(${facingDirection * catScaleX} ${catScaleY})`}>
       <g className="cat-raster-motion">
         <image
           className="cat-raster-image cat-raster-frame"
-          href={catFrameSrc(baseFrame)}
+          href={catFrameSrc(visibleFrame)}
           x={frameX}
           y={frameY}
           width={frameWidth}
           height={frameHeight}
           preserveAspectRatio="xMidYMid meet"
-          opacity={1 - frameMix}
-        />
-        <image
-          className="cat-raster-image cat-raster-frame"
-          href={catFrameSrc(nextFrame)}
-          x={frameX}
-          y={frameY}
-          width={frameWidth}
-          height={frameHeight}
-          preserveAspectRatio="xMidYMid meet"
-          opacity={frameMix}
+          opacity={1}
         />
       </g>
     </g>
@@ -613,7 +776,7 @@ function ScrollCatWorld({ children }: { children: ReactNode }) {
   } as CSSProperties;
 
   return (
-    <section className="cat-world" ref={worldRef} style={style} data-scene={scene} data-active-orb={activeOrb} data-thesis-active={thesisActive ? "true" : "false"} data-newspaper-active={newspaperSceneActive ? "true" : "false"} data-cat-x={x.toFixed(2)} data-cat-y={y.toFixed(2)} data-cat-frame={frameFloat.toFixed(2)} data-cat-mix={frameMix.toFixed(3)} data-cat-direction={facingDirection}>
+    <section className="cat-world" ref={worldRef} style={style} data-world-entered={worldEntered ? "true" : "false"} data-scene={scene} data-active-orb={activeOrb} data-thesis-active={thesisActive ? "true" : "false"} data-newspaper-active={newspaperSceneActive ? "true" : "false"} data-cat-x={x.toFixed(2)} data-cat-y={y.toFixed(2)} data-cat-frame={frameFloat.toFixed(2)} data-cat-mix={visualFrameMix.toFixed(3)} data-cat-direction={facingDirection}>
       <div className="cat-sticky" aria-hidden="true">
         <svg className="cat-route-svg" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice">
           <defs>
@@ -638,7 +801,7 @@ function ScrollCatWorld({ children }: { children: ReactNode }) {
           })}
         </svg>
         <svg className={`cat-character-svg cat-raster-stage is-${catMode} ${!reduced && poseHold ? "is-idle" : ""}`} viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice">
-          {renderCatFrames()}
+          {renderRiggedCat()}
         </svg>
         <div className={`thesis-moon-tableau ${!reduced && moonSettle > 0.88 ? "is-idle" : ""}`}>
           <span className="crescent-moon" />
@@ -660,7 +823,8 @@ function FlipCard({ id, title, copy, open, onToggle, children }: { id: string; t
         </button>
         <div className="card-face card-back">
           <button type="button" className="card-back-close" onClick={onToggle}>返回正面 ×</button>
-          <h3>{title}</h3>{children}
+          <div className="card-back-scroll"><h3>{title}</h3>{children}</div>
+          <p className="card-scroll-cue"><span>↓</span> 卡片内继续下滑 <span>↓</span></p>
         </div>
       </div>
     </article>
@@ -845,20 +1009,96 @@ function UmbrellaCanvas() {
 
 function UmbrellaProject({ onOpen }: { onOpen: (item: LightboxItem) => void }) {
   const [active, setActive] = useState<string | null>(null);
+  const [storyProgress, setStoryProgress] = useState(0);
+  const storyRef = useRef<HTMLDivElement>(null);
+  const reduced = useReducedMotion();
   const toggle = (id: string) => setActive((current) => current === id ? null : id);
+  useEffect(() => {
+    let raf = 0;
+    const update = () => {
+      const story = storyRef.current;
+      if (!story) return;
+      if (reduced) {
+        setStoryProgress(1);
+        return;
+      }
+      const rect = story.getBoundingClientRect();
+      const distance = Math.max(story.offsetHeight - innerHeight * 0.86, 1);
+      setStoryProgress(clamp((innerHeight * 0.12 - rect.top) / distance));
+    };
+    const request = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(update); };
+    update();
+    addEventListener("scroll", request, { passive: true });
+    addEventListener("resize", request);
+    return () => { cancelAnimationFrame(raf); removeEventListener("scroll", request); removeEventListener("resize", request); };
+  }, [reduced]);
+
+  const smoothStep = (value: number) => {
+    const amount = clamp(value);
+    return amount * amount * (3 - 2 * amount);
+  };
+  /* Keep the early entrance, but give the flap, rising paper and card wheel a
+     little more breathing room than the previous very short cut.  The archive
+     still settles before the halfway point, leaving the larger half for use. */
+  const envelopeEnter = smoothStep(storyProgress / 0.055);
+  const envelopeOpen = smoothStep((storyProgress - 0.04) / 0.09);
+  const paperRise = smoothStep((storyProgress - 0.095) / 0.115);
+  const wheelProgress = smoothStep((storyProgress - 0.18) / 0.17);
+  const settleProgress = smoothStep((storyProgress - 0.31) / 0.13);
+  const umbrellaEntrance = smoothStep((storyProgress - 0.19) / 0.14);
+  const wheelFocus = wheelProgress * 3;
+  const storyStyle = {
+    "--envelope-enter": envelopeEnter,
+    "--envelope-open": envelopeOpen,
+    "--paper-rise": paperRise,
+    "--wheel-progress": wheelProgress,
+    "--settle-progress": settleProgress,
+    "--sheet-y": `${310 - paperRise * 395 + settleProgress * 85}px`,
+    "--sheet-scale": 0.88 + paperRise * 0.08 + settleProgress * 0.04,
+    "--envelope-fade": 1 - settleProgress,
+    "--envelope-y": `${(1 - envelopeEnter) * 70}px`,
+    "--envelope-scale": 0.96 + envelopeEnter * 0.04,
+    "--sheet-width": `${82 + settleProgress * 18}%`,
+    "--sheet-mobile-width": `${92 + settleProgress * 8}%`,
+    "--sheet-height": `${76 + settleProgress * 20}%`,
+    "--flap-angle": `${envelopeOpen * -178}deg`,
+    "--heading-opacity": 0.42 + paperRise * 0.58,
+    "--umbrella-entrance": umbrellaEntrance,
+    "--umbrella-entrance-y": `${(1 - umbrellaEntrance) * 44}px`,
+  } as CSSProperties;
+  const cardMotionStyle = (index: number) => {
+    const row = Math.floor(index / 2);
+    const column = index % 2;
+    const offset = index - wheelFocus;
+    const proximity = 1 - clamp(Math.abs(offset), 0, 1);
+    const initialX = column === 0 ? 52 : -52;
+    const initialY = offset * 160 - row * 356;
+    return {
+      "--card-x": `${initialX * (1 - settleProgress)}%`,
+      "--card-y": `${initialY * (1 - settleProgress)}px`,
+      "--card-scale": 0.84 + proximity * 0.12 + settleProgress * (0.16 - proximity * 0.12),
+      "--card-opacity": Math.min(1, 0.4 + proximity * 0.6 + settleProgress * 0.6),
+      "--card-z": Math.round(proximity * 8 + settleProgress * 4),
+    } as CSSProperties;
+  };
   return (
     <section className="umbrella-project project-section" id="umbrella">
       <div className="umbrella-intro section-head">
         <div><p className="eyebrow">[ 01 / FIELD_RESEARCH ]</p><h2>桐香竹韵</h2><p>兰州大学赴四川省泸州市分水油纸伞调研</p></div>
         <p>从家乡的文化记忆出发，走进油纸伞厂、竹材产地与分水岭镇；以田野、问卷、影像和申报材料留下完整证据。</p>
       </div>
-      <div className="umbrella-dashboard">
+      <div className="umbrella-dashboard" style={storyStyle}>
         <aside className="umbrella-visual">
           <p>INK_UMBRELLA::ROTATING</p>
           <div className="umbrella-rotator"><UmbrellaCanvas /></div>
           <small>一把伞 / 四条工作线 / 全部可打开</small>
         </aside>
-        <div className="umbrella-cards">
+        <div className="umbrella-letter-story" ref={storyRef} style={storyStyle} data-interactive={storyProgress > 0.31 ? "true" : "false"} data-envelope-open={envelopeOpen > 0.55 ? "true" : "false"}>
+          <div className="umbrella-letter-sticky">
+            <div className="umbrella-letter-sheet">
+              <div className="letter-heading" aria-hidden="true"><span>FIELD NOTES / 分水油纸伞</span><b>一封来自田野的工作档案</b></div>
+              <div className="umbrella-cards">
+          <div className="umbrella-card-slot" style={cardMotionStyle(0)}>
           <FlipCard id="A" title="田野调研" copy={<>走访油纸伞厂、竹材产地与分水岭镇；<br />参与传承人访谈和居民调研。</>} open={active === "field"} onToggle={() => toggle("field")}>
             <div className="field-photo-grid">
               {[
@@ -868,11 +1108,15 @@ function UmbrellaProject({ onOpen }: { onOpen: (item: LightboxItem) => void }) {
               ].map(([src, title]) => <button type="button" key={src} onClick={() => onOpen({ src, title })}><img src={src} alt={title} /><span>{title}</span></button>)}
             </div>
           </FlipCard>
+          </div>
+          <div className="umbrella-card-slot" style={cardMotionStyle(1)}>
           <FlipCard id="B" title="问卷研究" copy={<>参与问卷设计、线下发放与收集、<br />数据清洗和调研报告撰写。</>} open={active === "survey"} onToggle={() => toggle("survey")}>
             <div className="document-links">
               {surveyDocuments.map((doc, index) => <div key={doc.pdf}><span>0{index + 1}</span><b>{doc.title}</b><a className="archive-action" href={doc.pdf} target="_blank" rel="noreferrer"><strong>阅读 PDF</strong><i>↗</i></a><a className="archive-action" href={doc.docx} download><strong>下载 DOCX</strong><i>↓</i></a></div>)}
             </div>
           </FlipCard>
+          </div>
+          <div className="umbrella-card-slot" style={cardMotionStyle(2)}>
           <FlipCard id="C" title="内容传播" copy={<>两篇中国青年网署名报道；<br />跟随拍摄《伞韵匠心》，参与文案撰写。</>} open={active === "media"} onToggle={() => toggle("media")}>
             <div className="media-archive">
               <button type="button" onClick={() => onOpen({ src: "/assets/umbrella/publicity-page1-2.jpg", title: "中国青年网署名报道（一）", caption: "原网页已清理，以署名截图存档。" })}><img src="/assets/umbrella/publicity-page1-2.jpg" alt="中国青年网署名报道一" /><span>署名报道 01</span></button>
@@ -881,6 +1125,8 @@ function UmbrellaProject({ onOpen }: { onOpen: (item: LightboxItem) => void }) {
               <a className="media-link" href="/assets/umbrella-publicity.pdf" target="_blank" rel="noreferrer"><b>“绸缪迭梦”公众号</b><span>查看图文与宣传成果 PDF ↗</span></a>
             </div>
           </FlipCard>
+          </div>
+          <div className="umbrella-card-slot" style={cardMotionStyle(3)}>
           <FlipCard id="D" title="竞赛申报" copy={<>参与“挑战杯”申报书 B、C、F 部分撰写，<br />项目获全国三等奖。</>} open={active === "competition"} onToggle={() => toggle("competition")}>
             <div className="competition-archive">
               <a href="/assets/umbrella/documents/challenge-application-bcf.doc" download><b>申报书 B、C、F 部分</b><span>下载原始 DOC ↓</span></a>
@@ -888,6 +1134,13 @@ function UmbrellaProject({ onOpen }: { onOpen: (item: LightboxItem) => void }) {
               <button type="button" onClick={() => onOpen({ src: "/assets/umbrella/challenge-award-2.jpg", title: "挑战杯全国三等奖奖状" })}><img src="/assets/umbrella/challenge-award-2.jpg" alt="挑战杯全国三等奖奖状二" /><span>查看奖状 02 ↗</span></button>
             </div>
           </FlipCard>
+          </div>
+              </div>
+            </div>
+            <div className="envelope-back" aria-hidden="true" />
+            <div className="envelope-flap" aria-hidden="true" />
+            <div className="envelope-front" aria-hidden="true"><span>TO::PORTFOLIO_READER</span><i>FIELD_01</i></div>
+          </div>
         </div>
       </div>
     </section>
@@ -899,10 +1152,15 @@ function NewspaperReveal() {
   return (
     <div id="newspaper-scene" className={`newspaper-scene ${open ? "is-open" : ""}`}>
       <button type="button" className="crumpled-paper" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-label="点击展开或收起报纸">
-        <span className="paper-texture"><img src="/assets/petroleum-page.webp" alt="《塔里木石油报》完整版面" /><i /></span>
+        <span className="paper-texture"><img src="/assets/petroleum-page.webp" alt="《塔里木石油报》刊登《并肩前行夫妻档，一路追光不言苦》的完整版面" /><i /></span>
       </button>
+      <div className="newspaper-open-caption" aria-hidden={!open}>
+        <small>《塔里木石油报》综合版 · 第 3 版</small>
+        <strong>并肩前行“夫妻档”<br />一路追“光”不言苦</strong>
+        <span>文章位于完整报纸下半部中央，橙色框已标出</span>
+      </div>
       <p className="pencil-prompt">{open ? "再点一次，收起报纸" : "点击纸团展开 ↗"}</p>
-      <a className="newspaper-pdf archive-action" href="/assets/petroleum-report.pdf" target="_blank" rel="noreferrer"><strong>阅读完整报纸 PDF</strong><i>↗</i></a>
+      <a className="newspaper-pdf archive-action" href="/assets/petroleum-report.pdf" target="_blank" rel="noreferrer"><strong>打开“夫妻档”见报 PDF</strong><i>↗</i></a>
     </div>
   );
 }
@@ -974,6 +1232,7 @@ function InteractiveBook() {
   const back = () => { if (phase === "end") { setPage(0); setPhase("turn-back"); schedule(() => setPhase("open"), 900); } };
   const visible = phase !== "closed" && phase !== "armed";
   const prompted = phase !== "closed" && phase !== "closing";
+  const showPagePrompt = prompted || previewing;
   const turning = phase === "turn-forward" || phase === "turn-back";
   return (
     <section className="book-project project-section" id="book">
@@ -982,12 +1241,12 @@ function InteractiveBook() {
         {!visible ? <button className={`closed-book ${previewing ? "is-previewing" : ""} ${phase === "armed" ? "is-armed" : ""}`} type="button" onMouseEnter={() => setPreviewing(true)} onClick={handleCover} aria-label={phase === "armed" ? "点击翻开《你好，李馨月》画册" : "让《你好，李馨月》画册立起"}><span className="book-spine">HELLO_LI_XINYUE::2025</span><span className="book-cover"><img src="/assets/intro-p1-cover.webp" alt="《你好，李馨月》封面" /></span><span className="book-pages" /></button> :
           <div className={`open-book phase-${phase}`} aria-label="《你好，李馨月》翻页画册">
             <button className="book-page left-page" type="button" onClick={page === 0 ? forward : back} aria-label={page === 1 ? "返回上一跨页" : "翻到下一跨页"}><img src={page === 1 && !turning ? "/assets/intro-p4-goals.webp" : "/assets/intro-p2-about.webp"} alt={page === 1 && !turning ? "第四页：未来展望" : "第二页：关于我"} /></button>
-            <button className="book-page right-page" type="button" onClick={forward} aria-label={page === 0 ? "翻到下一跨页" : "已到画册末页"}>{page === 0 && !turning ? <img src="/assets/intro-p3-growth.webp" alt="第三页：成长回顾" /> : <span className="blank-page"><i>fin.</i><small>CLICK_OUTSIDE_TO_CLOSE</small></span>}</button>
+            <button className="book-page right-page" type="button" onClick={page === 0 ? forward : close} aria-label={page === 0 ? "翻到下一跨页" : "点击合上画册"}>{page === 0 && !turning ? <img src="/assets/intro-p3-growth.webp" alt="第三页：成长回顾" /> : <span className="blank-page"><i>fin.</i><small>CLICK_TO_CLOSE</small></span>}</button>
             {turning && <div className={`turning-sheet ${phase === "turn-back" ? "is-reverse" : ""}`} aria-hidden="true"><span className="sheet-front"><img src="/assets/intro-p3-growth.webp" alt="" /></span><span className="sheet-back"><img src="/assets/intro-p4-goals.webp" alt="" /></span></div>}
-            <span className="book-gutter" aria-hidden="true" /><button type="button" className="book-close" onClick={close}>CLOSE ×</button>
+            <span className="book-gutter" aria-hidden="true" />
           </div>}
         {phase === "closed" && <p className="book-state-note">HOVER::书本起身 / CLICK::进入阅读</p>}
-        {prompted && <div className="book-page-prompt" aria-hidden="true"><svg viewBox="0 0 170 90"><path d="M164 73 C116 75 145 14 87 22 C43 28 73 75 26 62" /><path d="M27 62 L41 52 M27 62 L42 69" /></svg><span>点击翻页</span></div>}
+        {showPagePrompt && <div className="book-page-prompt" aria-hidden="true"><svg viewBox="0 0 170 90"><path d="M164 73 C116 75 145 14 87 22 C43 28 73 75 26 62" /><path d="M27 62 L41 52 M27 62 L42 69" /></svg><span>{phase === "end" ? "点击合上" : "点击翻页"}</span></div>}
       </div>
     </section>
   );
@@ -1003,11 +1262,63 @@ const thesisContents = [
 
 function ThesisProject({ onOpen }: { onOpen: (item: LightboxItem) => void }) {
   const [writeRun, setWriteRun] = useState(0);
+  const [introProgress, setIntroProgress] = useState(0);
+  const introRef = useRef<HTMLDivElement>(null);
   const replayWriting = () => setWriteRun((run) => run + 1);
   const chartOne = "/assets/thesis/research-significant-paths-original.png";
   const chartTwo = "/assets/thesis/research-rb-model-original.png";
+  useEffect(() => {
+    let raf = 0;
+    const update = () => {
+      const intro = introRef.current;
+      if (!intro) return;
+      const rect = intro.getBoundingClientRect();
+      const next = clamp((innerHeight * 0.96 - rect.top) / Math.max(innerHeight * 0.92, 1));
+      setIntroProgress(next);
+      const focus = rect.top < innerHeight * 0.98 && rect.bottom > innerHeight * 0.08;
+      document.documentElement.classList.toggle("thesis-intro-focus", focus);
+    };
+    const request = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(update); };
+    update();
+    addEventListener("scroll", request, { passive: true });
+    addEventListener("resize", request);
+    return () => {
+      cancelAnimationFrame(raf);
+      removeEventListener("scroll", request);
+      removeEventListener("resize", request);
+      document.documentElement.classList.remove("thesis-intro-focus");
+    };
+  }, [writeRun]);
+  const ease = (value: number) => {
+    const amount = clamp(value);
+    return amount * amount * (3 - 2 * amount);
+  };
+  const penArrival = ease((introProgress - 0.02) / 0.52);
+  const promptArrival = ease((introProgress - 0.28) / 0.42);
+  const pinkWash = ease((introProgress - 0.52) / 0.38);
+  const blueRecede = 1 - ease((introProgress - .04) / .58);
+  const bottleRaw = clamp((introProgress - .2) / .42);
+  const bottleSpring = bottleRaw <= 0 ? 0 : clamp(1 - Math.exp(-5.2 * bottleRaw) * Math.cos(9.2 * bottleRaw), 0, 1.12);
+  const thesisStyle = {
+    "--thesis-wash": pinkWash * 0.72,
+    "--thesis-texture-opacity": pinkWash * 0.34,
+    "--quill-arrival-y": `${(1 - penArrival) * 360}px`,
+    "--quill-arrival-scale": 1.34 - penArrival * 0.34,
+    "--quill-arrival-blur": `${(1 - penArrival) * 7}px`,
+    "--prompt-arrival-y": `${(1 - promptArrival) * 105}px`,
+    "--prompt-arrival-scale": 0.84 + promptArrival * 0.16,
+    "--prompt-arrival-opacity": promptArrival,
+    "--boundary-blue-opacity": blueRecede,
+    "--boundary-blue-lift": `${(1 - blueRecede) * -9}vh`,
+    "--bottle-arrival-y": `${(1 - bottleSpring) * 210}px`,
+    "--bottle-arrival-scale": .58 + bottleSpring * .42,
+    "--bottle-arrival-rotate": `${(1 - bottleSpring) * -11}deg`,
+    "--bottle-arrival-opacity": clamp(bottleRaw * 2.8),
+  } as CSSProperties;
   return (
-    <section className="thesis-project project-section" id="thesis">
+    <section className={`thesis-project project-section ${writeRun ? "is-open" : "is-awaiting-ink"}`} id="thesis" style={thesisStyle}>
+      <div className="thesis-boundary-wash" aria-hidden="true" />
+      <div className="thesis-intro-scroll" ref={introRef}>
       <div className="thesis-title-composition">
         <div className="thesis-title-panel">
           <p className="eyebrow">[ 05 / UNDERGRADUATE_THESIS / SEM ]</p>
@@ -1023,14 +1334,15 @@ function ThesisProject({ onOpen }: { onOpen: (item: LightboxItem) => void }) {
             <span>乙女游戏研究</span><span>结构方程模型（SEM）</span><span>用户行为分析</span><span>女性数字文化</span>
           </div>
         </div>
-        <aside className={`quill-station ${writeRun ? "is-writing" : ""}`}>
+        <aside className={`quill-station ${writeRun ? "is-writing" : ""}`} key={`quill-${writeRun}`}>
           <button type="button" className="quill-trigger" onClick={replayWriting} aria-label="点击羽毛笔书写英文论文标题">
             <img src="/assets/thesis/quill-black.png" alt="黑色羽毛笔" />
           </button>
-          <span className="quill-prompt">点击笔</span>
-          <span className="ink-bottle" aria-hidden="true"><img src="/assets/thesis/ink-bottle-reference.png" alt="" /></span>
+          <span className="quill-prompt">点击羽毛笔 · 展开纸张并书写标题</span>
+          <span className="ink-bottle" aria-hidden="true"><img src="/assets/thesis/ink-bottle-cutout-v2.png" alt="" /></span>
           <i className="ink-drop" aria-hidden="true" />
         </aside>
+      </div>
       </div>
 
       <div className="thesis-tableau-space" aria-hidden="true"><span>PLAYER_AVATAR + BLACK_CAT / POSE_HOLD / IDLE_LOOP</span></div>
@@ -1056,16 +1368,18 @@ function ThesisProject({ onOpen }: { onOpen: (item: LightboxItem) => void }) {
             <a className="archive-action" href="/assets/thesis/li-xinyue-undergraduate-thesis.pdf" target="_blank" rel="noreferrer"><strong>网页阅读 PDF</strong><i>↗</i></a>
             <a className="archive-action" href="/assets/thesis/li-xinyue-undergraduate-thesis.docx" download><strong>下载论文 DOCX</strong><i>↓</i></a>
           </div>
-          <article className="thesis-intro-paper">
-            <img src="/assets/thesis/halftone-rose-cutout.png" alt="" />
-            <h3>简介</h3>
-            <p>让乙游玩家氪金的，可能不是孤独，而是对浪漫的相信。</p>
-            <p>对<strong>253</strong>份有效问卷进行结构方程模型分析后，我发现：</p>
-            <p>社交焦虑不会直接显著提升氪金意愿，却可能通过强化浪漫信念间接影响消费；玩家社群也未必让人变得更加焦虑，但它可能同时放大对角色的情感投入与消费意愿。</p>
-            <p>更值得注意的是，性别主体意识更强，并不必然意味着更少相信浪漫、更不愿意氪金。</p>
-            <p>玩家不是简单地“被恋爱脑支配”，也不是完全置身商业机制之外。她们一边借助虚拟亲密关系获得陪伴、表达主体，一边面对情感被编码、定价与出售的现实。</p>
-            <p>当爱被写进代码，我们消费的究竟是角色、浪漫体验，还是理想中的自己？</p>
-          </article>
+          <div className="thesis-intro-paper-wrap">
+            <img className="thesis-intro-rose" src="/assets/thesis/halftone-rose-cutout.png" alt="" />
+            <article className="thesis-intro-paper">
+              <h3>简介</h3>
+              <p>让乙游玩家氪金的，可能不是孤独，而是对浪漫的相信。</p>
+              <p>对<strong>253</strong>份有效问卷进行结构方程模型分析后，我发现：</p>
+              <p>社交焦虑不会直接显著提升氪金意愿，却可能通过强化浪漫信念间接影响消费；玩家社群也未必让人变得更加焦虑，但它可能同时放大对角色的情感投入与消费意愿。</p>
+              <p>更值得注意的是，性别主体意识更强，并不必然意味着更少相信浪漫、更不愿意氪金。</p>
+              <p>玩家不是简单地“被恋爱脑支配”，也不是完全置身商业机制之外。她们一边借助虚拟亲密关系获得陪伴、表达主体，一边面对情感被编码、定价与出售的现实。</p>
+              <p>当爱被写进代码，我们消费的究竟是角色、浪漫体验，还是理想中的自己？</p>
+            </article>
+          </div>
         </div>
       </div>
 
@@ -1111,6 +1425,7 @@ export default function PortfolioClient() {
   const [soundOn, setSoundOn] = useState(false);
   const [lightbox, setLightbox] = useState<LightboxItem | null>(null);
   const audioRef = useRef<AudioContext | null>(null);
+  useForegroundReveals();
 
   const metal = (strength = 0.18) => {
     if (!soundOn) return;

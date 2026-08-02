@@ -30,6 +30,14 @@
   font-weight: 400;
 }
 
+@font-face {
+  font-family: "Great Vibes";
+  src: url("/assets/fonts/GreatVibes-Regular.ttf") format("truetype");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+}
+
 :root {
   --paper: #f4efe6;
   --paper-bright: #fbf8f1;
@@ -48,7 +56,7 @@
   --display-serif: "Xiangcui Kesong", "Songti SC", "STSong", serif;
   --hand: "ZCOOL QingKe HuangYou", "Microsoft YaHei", "PingFang SC", sans-serif;
   --crayon: "Shangshou Crayon", "ZCOOL QingKe HuangYou", sans-serif;
-  --ornate: "French Script MT", "Edwardian Script ITC", "Monotype Corsiva", "URW Chancery L", Georgia, serif;
+  --ornate: "Great Vibes", "Snell Roundhand", "Savoye LET", "Zapfino", "Apple Chancery", "Corsiva", "French Script MT", "Edwardian Script ITC", "Monotype Corsiva", cursive;
   --pixel-song: "ChangBan DianSong 16 SC", "Xiangcui Kesong", serif;
   --terminal: "Terminal", "Fixedsys", "Courier New", monospace;
   --children: "汉仪铸字儿童乐园", "YouYuan", "ZCOOL QingKe HuangYou", sans-serif;
@@ -184,6 +192,72 @@ main { padding-left: 164px; }
 .pendant-object.building img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) contrast(1.35); }
 .pendant-object.figure { width: 85px; height: 110px; border: 3px solid var(--ink); color: var(--paper-bright); background: linear-gradient(140deg,var(--indigo),#404a98); font: 54px var(--mono); clip-path: polygon(50% 0,82% 18%,71% 50%,92% 100%,52% 85%,14% 100%,29% 48%,18% 17%); }
 .chain-hint { position: absolute; left: 0; bottom: 11px; margin: 0; font: 8px var(--mono); letter-spacing: .12em; }
+.index-reach-cat {
+  position: absolute;
+  z-index: 4;
+  left: clamp(-42px,-2vw,-12px);
+  bottom: -17px;
+  width: clamp(210px,25vw,355px);
+  aspect-ratio: 1;
+  opacity: var(--index-cat-opacity,1);
+  pointer-events: none;
+  filter: drop-shadow(10px 16px 12px rgba(31,23,28,.19));
+  transition: opacity .08s linear;
+  transform: translate3d(var(--index-cat-x,0px),var(--index-cat-y,0px),0) scale(var(--index-cat-scale,1));
+  transform-origin: 55% 92%;
+}
+.index-reach-cat img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform: scaleX(-1);
+  transition: none;
+}
+.index-reach-cat[data-reaching="true"] {
+  filter: drop-shadow(7px 12px 9px rgba(31,23,28,.2));
+}
+.index-reach-cat[data-idle="true"] { animation: indexCatLoadingFloat 2.4s cubic-bezier(.42,0,.24,1) infinite; }
+@keyframes indexCatLoadingFloat {
+  0%,100% { transform: translate3d(0,0,0) scale(1) rotate(-.35deg); }
+  48% { transform: translate3d(0,-9px,0) scale(1.012,.988) rotate(.55deg); }
+}
+.index-cat-status {
+  position: absolute;
+  z-index: 6;
+  left: clamp(190px,24vw,340px);
+  bottom: 32px;
+  width: clamp(168px,18vw,228px);
+  padding: 10px 12px 11px;
+  opacity: var(--index-cat-opacity,1);
+  color: var(--paper-bright);
+  background: rgba(24,23,21,.88);
+  border: 1px solid rgba(255,255,255,.48);
+  box-shadow: 6px 7px 0 rgba(32,38,109,.28);
+  font-family: var(--mono);
+  pointer-events: none;
+}
+.index-cat-status b,
+.index-cat-status span { display: block; }
+.index-cat-status b { font-size: 7px; letter-spacing: .12em; }
+.index-cat-status span { margin-top: 5px; color: #f4c9dc; font: 11px/1.35 var(--sans); }
+.index-cat-status i {
+  display: block;
+  height: 3px;
+  margin-top: 9px;
+  overflow: hidden;
+  background: rgba(255,255,255,.19);
+}
+.index-cat-status em {
+  display: block;
+  width: 42%;
+  height: 100%;
+  background: linear-gradient(90deg,var(--pink-strong),var(--yellow));
+  animation: indexLoadingBar 1.65s ease-in-out infinite alternate;
+}
+@keyframes indexLoadingBar { from { transform: translateX(-20%); } to { transform: translateX(155%); } }
 
 /* Scroll-controlled black cat */
 .cat-world { position: relative; isolation: isolate; background: var(--paper); }
@@ -245,9 +319,30 @@ main { padding-left: 164px; }
 .card-front p { margin: 0; font: 13px/2 var(--serif); }
 .card-front b { margin-top: auto; padding-top: 17px; border-top: 1px dashed var(--ink); font: 900 20px var(--hand); }
 .card-front:hover b { color: var(--orange); transform: translateX(7px) rotate(-2deg); }
-.card-back { padding: 20px; overflow: auto; background: var(--paper-bright); transform: rotateY(180deg); }
+.card-back { padding: 0; overflow: hidden; background: var(--paper-bright); transform: rotateY(180deg); }
+.card-back-scroll {
+  position: absolute; inset: 0; overflow: auto; padding: 20px 20px 70px;
+  /* Let vertical wheel/trackpad motion continue into the page once this
+     card reaches its top or bottom.  `contain` trapped the gesture here and
+     made the sticky letter scene feel frozen whenever the pointer sat over a
+     flipped card. */
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--pink-strong) rgba(32,38,109,.08);
+}
+.card-back-scroll::-webkit-scrollbar { width: 8px; }
+.card-back-scroll::-webkit-scrollbar-track { background: rgba(32,38,109,.08); }
+.card-back-scroll::-webkit-scrollbar-thumb { background: var(--pink-strong); border: 2px solid var(--paper-bright); }
 .card-back h3 { margin: 40px 0 20px; font-size: 27px; }
-.card-back-close { position: absolute; right: 13px; top: 12px; border: 0; border-bottom: 1px solid; padding: 2px 0; background: transparent; font: 7px var(--mono); cursor: pointer; }
+.card-back-close { position: absolute; z-index: 5; right: 13px; top: 12px; border: 0; border-bottom: 1px solid; padding: 2px 0; background: rgba(251,248,241,.9); font: 7px var(--mono); cursor: pointer; }
+.card-scroll-cue {
+  position: absolute; z-index: 4; left: 16px; right: 16px; bottom: 8px; margin: 0; padding: 24px 8px 7px;
+  color: var(--indigo); background: linear-gradient(transparent,rgba(251,248,241,.98) 38%);
+  font: 800 10px/1 var(--mono); letter-spacing: .1em; text-align: center; pointer-events: none;
+}
+.card-scroll-cue span { display: inline-block; margin: 0 5px; color: var(--pink-strong); font-size: 16px; animation: cardScrollArrow 1.25s ease-in-out infinite; }
+@keyframes cardScrollArrow { 0%,100% { transform: translateY(-2px); } 50% { transform: translateY(4px); } }
 .field-photo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .field-photo-grid button, .media-archive button, .competition-archive button { padding: 0; border: 0; background: transparent; text-align: left; cursor: zoom-in; }
 .field-photo-grid button:first-child { grid-column: 1 / -1; }
@@ -302,7 +397,7 @@ main { padding-left: 164px; }
 .petroleum-photos figcaption { position: absolute; left: 5px; bottom: 4px; padding: 5px 8px; color: var(--ink); background: rgba(246,241,232,.9); font: 7px var(--mono); }
 
 /* Hand-painted cat + newspaper */
-.newspaper-scene { position: relative; min-height: 900px; margin-top: 115px; display: grid; place-items: center; perspective: 1600px; border-top: 1px solid rgba(255,255,255,.4); }
+.newspaper-scene { position: relative; z-index: 10; min-height: 1080px; margin-top: 115px; display: grid; place-items: center; perspective: 1600px; border-top: 1px solid rgba(255,255,255,.4); opacity: 1 !important; filter: none !important; transform: none !important; }
 .newspaper-scene::before { content: "NEWS_PRINT / ORIGINAL_PAGE / CLICK_TO_UNFOLD"; position: absolute; left: 0; top: 21px; font: 8px var(--mono); letter-spacing: .14em; }
 .newspaper-cat { position: absolute; left: 3%; bottom: 4%; width: min(31vw,430px); opacity: .96; filter: drop-shadow(13px 16px 14px rgba(0,0,0,.3)); }
 .crumpled-paper { position: relative; z-index: 2; width: 280px; height: 270px; padding: 0; border: 0; background: transparent; cursor: pointer; transform-style: preserve-3d; transition: width 1.15s cubic-bezier(.16,.84,.22,1), height 1.15s cubic-bezier(.16,.84,.22,1), transform 1.15s cubic-bezier(.16,.84,.22,1); }
@@ -314,17 +409,26 @@ main { padding-left: 164px; }
 .paper-texture i { left: 52%; top: 10%; width: 2px; height: 79%; transform: rotate(18deg); }
 .pencil-prompt { position: absolute; z-index: 4; right: 6%; top: 23%; margin: 0; color: var(--paper-bright); font: 900 clamp(31px,4vw,58px)/1.1 var(--hand); transform: rotate(-8deg); text-shadow: 2px 2px 0 #46413e; }
 .pencil-prompt::after { content: " ~~~~~>"; font-family: var(--mono); }
+.newspaper-open-caption {
+  position: absolute; z-index: 5; left: 2%; top: 15%; width: min(270px,22vw); padding: 16px 0;
+  display: grid; gap: 9px; border-top: 1px solid rgba(255,255,255,.72); border-bottom: 1px solid rgba(255,255,255,.72);
+  opacity: 0; transform: translateY(24px); transition: opacity .45s .45s, transform .65s .35s; pointer-events: none;
+}
+.newspaper-open-caption small { font: 7px/1.5 var(--mono); letter-spacing: .12em; }
+.newspaper-open-caption strong { color: var(--yellow); font: 700 clamp(23px,2.2vw,34px)/1.35 var(--serif); }
+.newspaper-open-caption span { color: #d5cbc3; font: 10px/1.7 var(--sans); }
+.newspaper-scene.is-open .newspaper-open-caption { opacity: 1; transform: translateY(0); }
 .newspaper-pdf { position: absolute; z-index: 6; right: 4%; bottom: 7%; min-height: 54px; padding: 13px 17px 12px; color: var(--paper-bright); background: rgba(24,23,21,.88); border-color: rgba(255,255,255,.72); font-size: 14px; box-shadow: 7px 7px 0 var(--orange); }
 .newspaper-pdf::before { background: var(--pink-strong); }
-.newspaper-scene.is-open .crumpled-paper { width: min(72vw,780px); height: 760px; transform: translateX(8vw) rotateX(0); }
+.newspaper-scene.is-open .crumpled-paper { width: min(62vw,63.1vh,680px); height: min(88.5vw,90vh,970px); transform: translateX(12vw) rotateX(0); }
 .newspaper-scene.is-open .paper-texture { clip-path: polygon(1% 2%,99% 0,98% 99%,2% 97%,0 4%); }
-.newspaper-scene.is-open .paper-texture img { object-fit: contain; background: #e7e1d7; filter: grayscale(.45) contrast(1.15) sepia(.08); transform: scale(1) rotate(0); }
+.newspaper-scene.is-open .paper-texture img { object-fit: contain; background: #fff; filter: none; transform: scale(1) rotate(0); }
 .newspaper-scene.is-open .paper-texture::before, .newspaper-scene.is-open .paper-texture::after { opacity: 0; }
 .newspaper-scene.is-open .paper-texture i {
   z-index: 5; left: 27%; top: 66%; width: 57%; height: 30%; opacity: 1; background: rgba(238,91,45,.08);
   border: 3px solid var(--orange); box-shadow: 0 0 0 2px rgba(251,248,241,.78); transform: rotate(-1deg);
 }
-.newspaper-scene.is-open .pencil-prompt { left: 2%; right: auto; top: 23%; max-width: 220px; font-size: 32px; }
+.newspaper-scene.is-open .pencil-prompt { left: 2%; right: auto; top: 51%; max-width: 220px; font-size: 25px; }
 
 /* Video */
 .december-project { --paint-in: rgba(28,27,27,.96); background: rgba(234,213,223,.5); }
@@ -512,7 +616,7 @@ main { padding-left: 164px; }
   .umbrella-visual > p, .umbrella-visual > small { writing-mode: vertical-rl; border: 0; }
   .umbrella-rotator { height: 500px; }
   .petroleum-layout { gap: 4vw; }
-  .newspaper-scene.is-open .crumpled-paper { width: min(75vw,700px); }
+  .newspaper-scene.is-open .crumpled-paper { width: min(56vw,55.4vh,600px); height: min(80vw,79vh,856px); transform: translateX(15vw); }
 }
 
 @media (max-width: 760px) {
@@ -568,11 +672,14 @@ main { padding-left: 164px; }
   .petroleum-photos { grid-template-columns: 1fr 1fr; }
   .petroleum-photos figure:first-child { height: 280px; }
   .petroleum-photos figure:nth-child(2), .petroleum-photos figure:nth-child(3) { height: 260px; }
-  .newspaper-scene { min-height: 760px; }
+  .newspaper-scene { min-height: 900px; }
   .newspaper-cat { left: -9%; width: 60vw; }
   .crumpled-paper { width: 220px; height: 210px; }
   .pencil-prompt { right: 2%; top: 20%; max-width: 170px; font-size: 31px; }
-  .newspaper-scene.is-open .crumpled-paper { width: 92vw; height: 610px; transform: translateX(0); }
+  .newspaper-open-caption { left: 20px; right: 20px; top: 70px; width: auto; padding: 11px 0; }
+  .newspaper-open-caption strong { font-size: 21px; }
+  .newspaper-scene.is-open .crumpled-paper { width: min(88vw,410px); height: min(125.5vw,585px); transform: translateY(72px); }
+  .newspaper-scene.is-open .pencil-prompt { left: 20px; top: auto; bottom: 92px; max-width: 155px; font-size: 20px; }
   .newspaper-pdf { bottom: 5%; }
 
   .video-frame { min-height: 480px; margin-top: 48px; }
@@ -745,10 +852,17 @@ main { padding-left: 164px; }
   transform: rotate(0) scale(1.025);
 }
 .quill-prompt {
-  position: absolute; z-index: 8; right: 4%; bottom: 6%; padding: 8px 12px;
-  color: #fff; background: #b72d6f; font: 18px var(--children); transform: rotate(-2deg);
+  position: absolute; z-index: 8; right: -2%; bottom: 4%; padding: 13px 18px 12px;
+  color: #fff; background: #b72d6f; border: 2px solid rgba(255,255,255,.92);
+  box-shadow: 7px 8px 0 rgba(32,38,109,.2), 0 0 0 3px rgba(183,45,111,.15);
+  font: 700 clamp(18px,1.65vw,24px)/1 var(--children); letter-spacing: .04em;
+  transform: rotate(-2deg); animation: quillPromptBreathe 1.55s ease-in-out infinite;
 }
 .quill-prompt::before { content: "↖ "; font-family: var(--mono); }
+@keyframes quillPromptBreathe {
+  0%,100% { transform: rotate(-2deg) translateY(0) scale(1); }
+  50% { transform: rotate(-1deg) translateY(-7px) scale(1.035); }
+}
 .ink-bottle {
   position: absolute; z-index: 5; left: 0; bottom: 0; width: 165px; height: 165px;
   overflow: hidden; border-radius: 46% 54% 48% 52%; filter: drop-shadow(0 14px 14px rgba(82,38,64,.22));
@@ -841,6 +955,200 @@ main { padding-left: 164px; }
 .thesis-intro-paper > img {
   position: absolute; left: -55px; top: -82px; width: 165px; height: auto;
   mix-blend-mode: multiply; transform: rotate(-13deg); pointer-events: none;
+}
+
+/* The paper itself has an irregular clip-path. The rose must be its sibling,
+   otherwise every pixel outside that paper silhouette is inevitably cut off. */
+.thesis-intro-paper-wrap {
+  position: relative;
+  z-index: 4;
+  min-width: 0;
+}
+.thesis-intro-paper-wrap .thesis-intro-paper {
+  height: 100%;
+}
+.thesis-intro-rose {
+  position: absolute;
+  z-index: 3;
+  left: -28px;
+  top: -46px;
+  width: 138px;
+  height: auto;
+  opacity: .9;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+  transform: rotate(-9deg);
+  transform-origin: center;
+  pointer-events: none;
+}
+
+/* --------------------------------------------------------------------------
+   Articulated cat. Unlike the old raster flipbook, each joint owns a gentle
+   motion, so the character can breathe and look around without changing into
+   a second silhouette. */
+.rig-cat-root,
+.rig-cat-motion,
+.rig-cat-tail-joint,
+.rig-cat-head-joint,
+.rig-cat-front-leg,
+.rig-cat-back-leg,
+.rig-cat-eye {
+  transform-box: fill-box;
+}
+.rig-cat-root { transform-origin: center bottom; }
+.rig-cat-motion {
+  transform-origin: 50% 93%;
+  animation: rigCatBreathe 3.6s cubic-bezier(.4,0,.25,1) infinite;
+}
+.rig-cat-body,
+.rig-cat-face,
+.rig-cat-limb,
+.rig-cat-paw,
+.rig-cat-ear {
+  fill: #17131a;
+  stroke: #332b37;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.rig-cat-body-glint,
+.rig-cat-cheek-glint {
+  fill: #4a3d4d;
+  opacity: .34;
+}
+.rig-cat-tail-joint {
+  transform-origin: 91% 54%;
+  animation: rigCatTail 3.15s cubic-bezier(.45,.02,.25,1) infinite;
+}
+.rig-cat-tail {
+  fill: none;
+  stroke: #17131a;
+  stroke-width: 17;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.rig-cat-head-joint {
+  transform-origin: 47% 77%;
+  animation: rigCatLook 5.2s cubic-bezier(.4,0,.22,1) infinite;
+}
+.rig-cat-inner-ear { fill: #8c526e; opacity: .58; }
+.rig-cat-ear-left,
+.rig-cat-ear-right {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+.rig-cat-ear-left { animation: rigCatEarLeft 4.9s ease-in-out infinite; }
+.rig-cat-ear-right { animation: rigCatEarRight 4.9s ease-in-out infinite; }
+.rig-cat-eye {
+  transform-origin: center;
+  animation: rigCatBlink 5.6s cubic-bezier(.2,0,.3,1) infinite;
+}
+.rig-cat-eye-gold { fill: #c8a63b; stroke: #dce3c6; stroke-width: 1.2; }
+.rig-cat-pupil { fill: #17131a; }
+.rig-cat-eye-spark { fill: #f7fbf4; opacity: .92; }
+.rig-cat-brow,
+.rig-cat-smile,
+.rig-cat-whiskers path {
+  fill: none;
+  stroke: #5a4a5e;
+  stroke-width: 1.3;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.rig-cat-nose { fill: #ad6985; }
+.rig-cat-front-leg,
+.rig-cat-back-leg { transform-origin: 50% 15%; }
+.rig-cat-front-leg-front { animation: rigCatFrontPaw 3.6s ease-in-out infinite; }
+.rig-cat-front-leg-back { animation: rigCatBackPaw 3.6s ease-in-out infinite; }
+.rig-cat-back-leg { animation: rigCatHindPaw 3.6s ease-in-out infinite; }
+
+.cat-raster-stage.is-crouch .rig-cat-motion { transform: translateY(5px) scaleY(.96); }
+.cat-raster-stage.is-leap .rig-cat-motion { animation: rigCatLeapBody .72s ease-in-out infinite alternate; }
+.cat-raster-stage.is-leap .rig-cat-tail-joint { animation-duration: .85s; }
+.cat-raster-stage.is-leap .rig-cat-front-leg-front { animation: rigCatLeapFore .72s ease-in-out infinite alternate; }
+.cat-raster-stage.is-leap .rig-cat-front-leg-back { animation: rigCatLeapFore .72s .08s ease-in-out infinite alternate-reverse; }
+.cat-raster-stage.is-leap .rig-cat-back-leg { animation: rigCatLeapHind .72s ease-in-out infinite alternate; }
+.cat-raster-stage.is-groom .rig-cat-front-leg-front {
+  animation: rigCatGroomPaw 1.65s cubic-bezier(.5,0,.2,1) infinite;
+}
+.cat-raster-stage.is-groom .rig-cat-head-joint { animation: rigCatGroomHead 1.65s ease-in-out infinite; }
+.cat-raster-stage.is-moon .rig-cat-head-joint { animation: rigCatMoonLook 5.8s ease-in-out infinite; }
+
+@keyframes rigCatBreathe {
+  0%,100% { transform: translateY(0) rotate(-.25deg) scale(1); }
+  48% { transform: translateY(-2.5px) rotate(.35deg) scale(1.008,.992); }
+}
+@keyframes rigCatTail {
+  0%,100% { transform: rotate(-7deg); }
+  42% { transform: rotate(11deg); }
+  70% { transform: rotate(5deg); }
+}
+@keyframes rigCatLook {
+  0%,18%,100% { transform: rotate(-2deg) translate(0,0); }
+  38%,57% { transform: rotate(4deg) translate(1px,-1px); }
+  76%,88% { transform: rotate(0deg) translate(-1px,0); }
+}
+@keyframes rigCatBlink {
+  0%,41%,45%,78%,82%,100% { transform: scaleY(1); }
+  43%,80% { transform: scaleY(.12); }
+}
+@keyframes rigCatEarLeft {
+  0%,35%,43%,100% { transform: rotate(0); }
+  39% { transform: rotate(-9deg); }
+}
+@keyframes rigCatEarRight {
+  0%,61%,69%,100% { transform: rotate(0); }
+  65% { transform: rotate(8deg); }
+}
+@keyframes rigCatFrontPaw {
+  0%,100% { transform: rotate(2deg) translateY(0); }
+  50% { transform: rotate(-3deg) translateY(-1px); }
+}
+@keyframes rigCatBackPaw {
+  0%,100% { transform: rotate(-2deg); }
+  50% { transform: rotate(2deg); }
+}
+@keyframes rigCatHindPaw {
+  0%,100% { transform: rotate(1deg); }
+  50% { transform: rotate(-2deg); }
+}
+@keyframes rigCatLeapBody {
+  from { transform: rotate(-1deg) scale(1.04,.96); }
+  to { transform: rotate(1deg) scale(.98,1.035); }
+}
+@keyframes rigCatLeapFore {
+  from { transform: rotate(-27deg) translate(3px,-2px); }
+  to { transform: rotate(15deg) translate(-2px,1px); }
+}
+@keyframes rigCatLeapHind {
+  from { transform: rotate(20deg) translate(2px,-1px); }
+  to { transform: rotate(-14deg) translate(-3px,2px); }
+}
+@keyframes rigCatGroomPaw {
+  0%,16%,100% { transform: rotate(0) translate(0,0); }
+  34%,70% { transform: rotate(-64deg) translate(-9px,-36px); }
+  45%,58% { transform: rotate(-73deg) translate(-11px,-42px); }
+}
+@keyframes rigCatGroomHead {
+  0%,18%,100% { transform: rotate(-2deg); }
+  38%,72% { transform: rotate(-9deg) translate(-2px,3px); }
+}
+@keyframes rigCatMoonLook {
+  0%,22%,100% { transform: rotate(-4deg) translateY(0); }
+  45%,68% { transform: rotate(7deg) translateY(-2px); }
+}
+
+@media (max-width: 900px) {
+  .thesis-intro-rose { left: -16px; top: -45px; width: 112px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rig-cat-motion,
+  .rig-cat-tail-joint,
+  .rig-cat-head-joint,
+  .rig-cat-front-leg,
+  .rig-cat-back-leg,
+  .rig-cat-eye,
+  .rig-cat-ear { animation: none !important; }
 }
 .thesis-intro-paper h3 { margin: 0 0 28px; color: #9d2e67; font: 43px/1 var(--pixel-song); }
 .thesis-intro-paper p { margin: 0 0 17px; font: 16px/1.9 var(--serif); text-wrap: pretty; }
@@ -1555,7 +1863,7 @@ main { padding-left: 164px; }
   filter: contrast(1.04);
 }
 
-/* ========================================================================== 
+/* ===========================================================================
    6.0 authoritative repair layer
    Keep supplied raster artwork intact. Earlier experimental overrides remain
    above for history, but this final layer is the single source of truth.
@@ -1707,10 +2015,10 @@ main { padding-left: 164px; }
   .work-orb[data-active="true"]::after { animation: none !important; }
 }
 
-/* ========================================================================== 
+/* ===========================================================================
    6.0 scroll world
-   The route and responsive landing fields remain SVG. The only travelling
-   cat is a transparent raster pose selected by the scroll-linked timeline.
+   The route and responsive landing fields remain SVG. The travelling cat is
+   assembled from independently animated CSS parts on the same route timeline.
    ========================================================================== */
 .cat-route-svg,
 .cat-character-svg {
@@ -1785,7 +2093,7 @@ main { padding-left: 164px; }
 
 /* At the newspaper hold the same cat moves in front of the translucent black
    scene; the route recedes, so only one character is ever visible. */
-.cat-world[data-newspaper-active="true"] .cat-sticky { z-index: 3; }
+.cat-world[data-newspaper-active="true"] .cat-sticky { z-index: 1; }
 .cat-world[data-newspaper-active="true"] .cat-route-svg { opacity: .11; }
 .cat-world[data-newspaper-active="true"] .cat-character-svg {
   filter: drop-shadow(0 0 1px rgba(245,232,215,.42)) drop-shadow(10px 14px 12px rgba(0,0,0,.38));
@@ -1818,14 +2126,522 @@ main { padding-left: 164px; }
 .cat-content .project-section > * { z-index: 3; }
 .cat-route-svg { opacity: .72; }
 .cat-character-svg { opacity: .86; }
-.cat-world[data-newspaper-active="true"] .cat-sticky { z-index: 4; }
+.cat-world[data-newspaper-active="true"] .cat-sticky { z-index: 1; }
 .cat-world[data-newspaper-active="true"] .cat-character-svg { opacity: .96; }
 
 /* Opaque chapter colours are reduced to translucent editorial washes so the
    route remains continuous instead of disappearing at every page boundary. */
 .umbrella-project { background: rgba(251,248,241,.18); }
-.petroleum-project { background: rgba(24,23,24,.84); }
+.petroleum-project { z-index: 3; background: rgba(24,23,24,.84); }
 .december-project { background: rgba(234,213,223,.32); }
 .book-project { background: rgba(32,38,109,.70); }
 .thesis-project { background-color: rgba(250,228,239,.72); }
 .blender-archive { background: rgba(230,189,63,.30); }
+
+/* ========================================================================== */
+/* 6.1 scroll-led editorial pacing
+   Foreground material arrives as the reader reaches it. The cat route remains
+   an independent, normally scrolling background layer.
+   ========================================================================== */
+.reveal-ready [data-reveal] {
+  opacity: 0;
+  filter: blur(7px);
+  transform: translate3d(0,58px,0) scale(.985);
+  transition:
+    opacity .88s cubic-bezier(.2,.72,.2,1),
+    transform 1.08s cubic-bezier(.16,.78,.18,1),
+    filter .9s ease;
+  will-change: opacity, transform, filter;
+}
+.reveal-ready [data-reveal="soft-left"] { transform: translate3d(-44px,34px,0) rotate(-.7deg); }
+.reveal-ready [data-reveal].is-revealed {
+  opacity: 1;
+  filter: blur(0);
+  transform: translate3d(0,0,0) scale(1) rotate(0);
+}
+
+/* Field-research letter: a long scroll range opens the envelope, raises the
+   sheet, rolls the four real interactive cards through the centre, then lets
+   those same cards settle into their familiar two-column archive. */
+.umbrella-dashboard {
+  grid-template-columns: minmax(250px,.31fr) minmax(560px,.69fr);
+  gap: clamp(24px,3.5vw,58px);
+}
+.umbrella-dashboard .umbrella-visual {
+  opacity: var(--umbrella-entrance,0);
+  transform: translateY(var(--umbrella-entrance-y,44px));
+  transition: none;
+}
+.umbrella-letter-story {
+  position: relative;
+  height: 350vh;
+  min-height: 2450px;
+}
+.umbrella-letter-sticky {
+  position: sticky;
+  top: 8vh;
+  height: 84vh;
+  min-height: 650px;
+  overflow: visible;
+  perspective: 1500px;
+  opacity: var(--envelope-enter);
+  transform: translateY(var(--envelope-y)) scale(var(--envelope-scale));
+  transform-origin: 50% 70%;
+}
+.umbrella-letter-sheet {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  bottom: 8%;
+  width: var(--sheet-width);
+  height: var(--sheet-height);
+  min-height: 530px;
+  overflow: hidden;
+  padding: clamp(18px,2vw,30px);
+  border: 1px solid rgba(38,42,54,.48);
+  background:
+    linear-gradient(90deg, transparent 48px, rgba(211,91,91,.13) 49px, transparent 50px),
+    repeating-linear-gradient(0deg, transparent 0 27px, rgba(48,66,91,.055) 28px),
+    #fffdf8;
+  box-shadow: 0 20px 46px rgba(42,51,68,.18), inset 0 0 50px rgba(115,137,152,.06);
+  transform: translateX(-50%) translateY(var(--sheet-y)) scale(var(--sheet-scale));
+  transform-origin: 50% 100%;
+}
+.letter-heading {
+  position: relative;
+  z-index: 15;
+  height: 57px;
+  padding-left: 38px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  border-bottom: 1px dashed rgba(31,35,47,.42);
+  color: rgba(32,38,109,.75);
+  font: 7px var(--mono);
+  letter-spacing: .13em;
+  opacity: var(--heading-opacity);
+}
+.letter-heading b { color: var(--ink); font: 900 clamp(16px,1.4vw,23px) var(--hand); letter-spacing: .04em; transform: rotate(-1deg); }
+.umbrella-letter-story .umbrella-cards {
+  position: relative;
+  height: calc(100% - 57px);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 16px;
+  padding-top: 14px;
+  overflow: visible;
+}
+.umbrella-card-slot {
+  position: relative;
+  z-index: var(--card-z);
+  min-width: 0;
+  min-height: 0;
+  opacity: var(--card-opacity);
+  transform: translate3d(var(--card-x),var(--card-y),0) scale(var(--card-scale));
+  transform-origin: 50% 50%;
+  filter: drop-shadow(0 12px 15px rgba(31,34,45,.12));
+  will-change: transform, opacity;
+}
+.umbrella-letter-story[data-interactive="false"] .umbrella-card-slot { pointer-events: none; }
+.umbrella-letter-story .flip-card { width: 100%; height: 100%; min-height: 0; }
+.umbrella-letter-story .card-front { padding: clamp(15px,1.45vw,23px); }
+.umbrella-letter-story .card-front h3,
+.umbrella-letter-story .card-back h3 { margin: clamp(35px,5vh,58px) 0 clamp(15px,2.4vh,26px); font-size: clamp(27px,2.3vw,38px); }
+.umbrella-letter-story .card-front p { font-size: clamp(12px,1.02vw,16px); line-height: 1.72; }
+.umbrella-letter-story .card-front b { font-size: clamp(15px,1.35vw,20px); }
+.umbrella-card-slot:nth-child(2) h3 { color: var(--indigo); transform: rotate(2deg); text-shadow: 3px 3px 0 var(--yellow); }
+.umbrella-card-slot:nth-child(3) h3 { color: var(--orange); }
+.umbrella-card-slot:nth-child(4) h3 { color: var(--sage); transform: rotate(1deg); }
+
+.envelope-back,
+.envelope-front,
+.envelope-flap {
+  position: absolute;
+  left: 50%;
+  bottom: 2.5%;
+  width: 88%;
+  height: 36%;
+  opacity: var(--envelope-fade);
+  filter: drop-shadow(0 18px 23px rgba(42,55,75,.16));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.envelope-back {
+  z-index: 1;
+  border: 1px solid rgba(56,85,104,.36);
+  background: linear-gradient(145deg,#b9d4e3,#8fb5ca 72%);
+}
+.envelope-flap {
+  z-index: 5;
+  bottom: calc(2.5% + 18%);
+  height: 22%;
+  background: linear-gradient(165deg,#b9d7e7,#8eb5ca);
+  clip-path: polygon(0 0,100% 0,50% 100%);
+  transform-origin: 50% 0;
+  transform: translateX(-50%) rotateX(var(--flap-angle));
+  backface-visibility: visible;
+}
+.umbrella-letter-story[data-envelope-open="true"] .envelope-flap { z-index: 2; }
+.envelope-front {
+  z-index: 6;
+  overflow: hidden;
+  border: 1px solid rgba(56,85,104,.36);
+  background:
+    linear-gradient(32deg,transparent 49.5%,rgba(255,255,255,.48) 50%,transparent 50.5%),
+    linear-gradient(-32deg,transparent 49.5%,rgba(255,255,255,.42) 50%,transparent 50.5%),
+    linear-gradient(140deg,#a9cbdd,#83abc1);
+  clip-path: polygon(0 0,50% 52%,100% 0,100% 100%,0 100%);
+}
+.envelope-front span,
+.envelope-front i {
+  position: absolute;
+  bottom: 18px;
+  color: rgba(31,49,65,.64);
+  font: 7px var(--mono);
+  letter-spacing: .11em;
+  font-style: normal;
+}
+.envelope-front span { left: 22px; }
+.envelope-front i { right: 22px; }
+
+/* More animal-like rhythm for the supplied cat drawings: the jump follows the
+   trajectory tangent, holds breathe asymmetrically, and the standing pose
+   occasionally blinks instead of staring continuously. */
+.cat-character-svg { opacity: .93; }
+.cat-raster-stage.is-leap .cat-raster-motion { transform: scaleX(1.018) scaleY(.99); }
+.cat-raster-blink {
+  fill: #171219;
+  opacity: 0;
+  animation: catNaturalBlink 5.8s steps(1,end) infinite;
+  pointer-events: none;
+}
+@keyframes catNaturalBlink {
+  0%,42%,46%,100% { opacity: 0; }
+  43%,45% { opacity: .96; }
+}
+@keyframes rasterCatIdle {
+  0%,100% { transform: translateY(0) rotate(-.25deg) scale(1); }
+  31% { transform: translateY(-2px) rotate(.2deg) scale(1.004,.996); }
+  67% { transform: translateY(-3.5px) rotate(.55deg) scale(.997,1.004); }
+}
+
+@media (max-width: 1000px) {
+  .umbrella-dashboard { grid-template-columns: 1fr; }
+  .umbrella-visual { position: relative; top: auto; min-height: 520px; }
+  .umbrella-rotator { height: 440px; }
+  .umbrella-letter-story { height: 330vh; min-height: 2200px; }
+  .umbrella-letter-sticky { top: 7vh; height: 86vh; }
+}
+@media (max-width: 680px) {
+  .umbrella-letter-story { height: 380vh; min-height: 2500px; }
+  .umbrella-letter-sticky { min-height: 590px; }
+  .umbrella-letter-sheet { width: var(--sheet-mobile-width); padding: 14px 11px; }
+  .letter-heading { height: 50px; padding-left: 14px; }
+  .letter-heading span { display: none; }
+  .umbrella-letter-story .umbrella-cards { height: calc(100% - 50px); gap: 9px; padding-top: 9px; }
+  .umbrella-letter-story .card-front { padding: 13px; }
+  .umbrella-letter-story .card-front h3,
+  .umbrella-letter-story .card-back h3 { margin: 34px 0 15px; font-size: clamp(22px,7vw,31px); }
+  .umbrella-letter-story .card-front p { font-size: 11px; line-height: 1.55; }
+  .umbrella-letter-story .card-front b { font-size: 14px; }
+  .envelope-back,.envelope-front,.envelope-flap { width: 96%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal-ready [data-reveal] { opacity: 1 !important; filter: none !important; transform: none !important; transition: none !important; }
+  .cat-raster-blink { animation: none; }
+}
+
+/* The hanging-scene cat hands the story to the route cat at one exact
+   boundary.  The route may already be laid out below the viewport, but its
+   animal cannot appear until the route itself reaches the stage. */
+.cat-world[data-world-entered="false"] .cat-character-svg { opacity: 0 !important; }
+.cat-world[data-world-entered="true"] .cat-character-svg { transition: opacity .16s linear; }
+
+/* ========================================================================== */
+/* 6.2 thesis entrance — quill first, paper and archive only after interaction */
+.thesis-project {
+  position: relative;
+  padding-top: 0 !important;
+  background-color: rgb(250 228 239 / var(--thesis-wash)) !important;
+  transition: background-color .18s linear;
+}
+.thesis-boundary-wash {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  right: 0;
+  top: -2px;
+  height: 112vh;
+  min-height: 720px;
+  opacity: var(--boundary-blue-opacity);
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 66% 68%,rgba(245,236,226,.18) 0 24%,transparent 58%),
+    linear-gradient(180deg,#20266d 0 12%,rgba(43,50,120,.92) 26%,rgba(112,115,157,.68) 48%,rgba(218,210,210,.28) 72%,transparent 100%);
+  border-radius: 0 0 48% 52% / 0 0 10% 12%;
+  transform: translateY(var(--boundary-blue-lift));
+  transform-origin: 50% 0;
+  transition: opacity .12s linear, transform .12s linear;
+}
+.thesis-project::before { opacity: var(--thesis-texture-opacity) !important; transition: opacity .18s linear; }
+.thesis-intro-scroll {
+  position: relative;
+  height: 188vh;
+  min-height: 1220px;
+}
+.thesis-intro-scroll .thesis-title-composition {
+  position: sticky !important;
+  z-index: 8;
+  top: 0;
+  width: 100% !important;
+  height: 100vh;
+  min-height: 650px;
+  margin: 0 auto;
+  display: block !important;
+  overflow: visible;
+  isolation: isolate;
+}
+.thesis-intro-scroll .thesis-title-panel {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 50%;
+  width: min(920px,82%);
+  max-height: 84vh;
+  margin: 0;
+  padding: clamp(28px,3.5vw,52px);
+  overflow: auto;
+  opacity: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg,transparent 55px,rgba(203,74,119,.11) 56px,transparent 57px),
+    repeating-linear-gradient(0deg,transparent 0 30px,rgba(73,66,101,.045) 31px),
+    rgba(255,253,248,.97);
+  backdrop-filter: none;
+  box-shadow: 0 30px 80px rgba(71,35,64,.2), 0 0 0 1px rgba(55,35,50,.26);
+  clip-path: inset(49% 6% 49% 6% round 2px);
+  transform: translate(-50%,-50%) perspective(1200px) rotateX(72deg) scale(.72,.08);
+  transform-origin: 50% 50%;
+}
+.thesis-project.is-open .thesis-title-panel {
+  pointer-events: auto;
+  animation: thesisPaperUnfold 1.18s cubic-bezier(.18,.86,.2,1) both;
+}
+@keyframes thesisPaperUnfold {
+  0% { opacity: 0; clip-path: inset(49% 6% 49% 6% round 2px); transform: translate(-50%,-50%) perspective(1200px) rotateX(72deg) scale(.72,.08); }
+  38% { opacity: 1; clip-path: inset(14% 4% 14% 4% round 2px); transform: translate(-50%,-50%) perspective(1200px) rotateX(20deg) scale(.88,.68); }
+  72% { clip-path: inset(0 round 2px); transform: translate(-50%,-50%) perspective(1200px) rotateX(-4deg) scale(1.025,.985); }
+  100% { opacity: 1; clip-path: inset(0 round 2px); transform: translate(-50%,-50%) perspective(1200px) rotateX(0) scale(1); }
+}
+.thesis-intro-scroll .thesis-title-panel > *,
+.thesis-intro-scroll .thesis-title-panel::before { opacity: 0; }
+.thesis-project.is-open .thesis-title-panel::before { animation: thesisInkReveal .55s ease 1.05s both; }
+.thesis-project.is-open .thesis-title-panel > .eyebrow { animation: thesisInkReveal .55s ease 1.1s both; }
+.thesis-project.is-open .thesis-title-panel > h2 { animation: thesisInkReveal .75s cubic-bezier(.2,.8,.2,1) 1.38s both; }
+.thesis-project.is-open .thesis-title-panel > h3 { animation: thesisLineWrite 1.4s cubic-bezier(.2,.74,.2,1) 2.05s both; }
+.thesis-project.is-open .thesis-title-panel > .thesis-en { animation: thesisInkReveal .25s ease 3.05s both; }
+.thesis-project.is-open .thesis-title-panel > .thesis-topic-tags { animation: thesisInkReveal .7s ease 8.2s both; }
+@keyframes thesisInkReveal {
+  from { opacity: 0; transform: translateY(18px); filter: blur(5px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+@keyframes thesisLineWrite {
+  0% { opacity: .12; clip-path: inset(0 100% 0 0); filter: blur(1px); }
+  100% { opacity: 1; clip-path: inset(0); filter: blur(0); }
+}
+.thesis-project.is-open .thesis-en.is-writing span { animation-duration: 1.25s; }
+.thesis-project.is-open .thesis-en.is-writing span:nth-child(1) { animation-delay: 3.15s; }
+.thesis-project.is-open .thesis-en.is-writing span:nth-child(2) { animation-delay: 4.15s; }
+.thesis-project.is-open .thesis-en.is-writing span:nth-child(3) { animation-delay: 5.15s; }
+.thesis-project.is-open .thesis-en.is-writing span:nth-child(4) { animation-delay: 6.15s; }
+
+.thesis-intro-scroll .quill-station {
+  position: absolute;
+  z-index: 7;
+  inset: 0;
+  min-height: 0 !important;
+  background: none;
+  isolation: isolate;
+  pointer-events: none;
+}
+.thesis-intro-scroll .quill-trigger {
+  position: absolute;
+  z-index: 12;
+  left: 50%;
+  right: auto;
+  top: 48%;
+  width: clamp(270px,31vw,430px);
+  padding: 0;
+  pointer-events: auto;
+  filter: blur(var(--quill-arrival-blur)) drop-shadow(0 34px 26px rgba(41,23,43,.31)) drop-shadow(0 2px 0 rgba(255,255,255,.8));
+  transform: translate(-50%,-50%) translateY(var(--quill-arrival-y)) scale(var(--quill-arrival-scale)) rotate(-5deg);
+  transform-origin: 36% 82%;
+  transition: filter .22s ease, transform .2s cubic-bezier(.2,.78,.25,1);
+}
+.thesis-intro-scroll .quill-trigger:hover,
+.thesis-intro-scroll .quill-trigger:focus-visible {
+  outline: 0;
+  filter: blur(var(--quill-arrival-blur)) drop-shadow(0 0 3px #ff258c) drop-shadow(0 18px 24px rgba(93,39,76,.34));
+}
+.thesis-intro-scroll .quill-prompt {
+  position: absolute;
+  z-index: 13;
+  left: 50%;
+  right: auto;
+  top: calc(50% + 185px);
+  bottom: auto;
+  width: max-content;
+  max-width: 86%;
+  opacity: var(--prompt-arrival-opacity);
+  pointer-events: none;
+  transform: translate(-50%,-50%) translateY(var(--prompt-arrival-y)) scale(var(--prompt-arrival-scale)) rotate(-2deg);
+  transition: transform .62s cubic-bezier(.16,1.45,.3,1), opacity .28s ease;
+  animation: thesisPromptElastic 2.25s cubic-bezier(.16,.85,.28,1) infinite;
+}
+@keyframes thesisPromptElastic {
+  0%,100% { margin-top: 0; }
+  42% { margin-top: -10px; }
+  58% { margin-top: -6px; }
+}
+.thesis-project.is-open .quill-prompt { opacity: 0; transform: translate(-50%,-50%) translateY(24px) scale(.82); animation: none; }
+.thesis-intro-scroll .ink-bottle {
+  position: absolute;
+  z-index: 9;
+  left: clamp(28px,7vw,105px);
+  bottom: clamp(34px,8vh,82px);
+  width: clamp(112px,12vw,165px);
+  height: auto;
+  aspect-ratio: 586 / 655;
+  overflow: visible;
+  border-radius: 0;
+  filter: drop-shadow(0 22px 17px rgba(55,28,46,.27));
+  mix-blend-mode: normal;
+  opacity: var(--bottle-arrival-opacity);
+  transform: translateY(var(--bottle-arrival-y)) scale(var(--bottle-arrival-scale)) rotate(var(--bottle-arrival-rotate));
+  transform-origin: 50% 88%;
+  transition: none;
+}
+.thesis-intro-scroll .ink-bottle img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  transform: none;
+}
+.thesis-intro-scroll .ink-drop { left: 21%; bottom: 24%; }
+.thesis-intro-scroll .quill-station.is-writing .quill-trigger {
+  animation: thesisQuillWrite 8.6s cubic-bezier(.4,.02,.2,1) .72s both;
+}
+.thesis-intro-scroll .quill-station.is-writing .ink-drop { animation: inkDrop 1.05s ease .36s both; }
+@keyframes thesisQuillWrite {
+  0% { transform: translate(-50%,-50%) rotate(-5deg) scale(1); }
+  8% { transform: translate(-108%,9%) rotate(-30deg) scale(.78); }
+  14% { transform: translate(-92%,-6%) rotate(-20deg) scale(.8); }
+  22% { transform: translate(-118%,-51%) rotate(-29deg) scale(.72); }
+  32% { transform: translate(-42%,-51%) rotate(-15deg) scale(.72); }
+  40% { transform: translate(-112%,-28%) rotate(-28deg) scale(.72); }
+  50% { transform: translate(-38%,-28%) rotate(-14deg) scale(.72); }
+  58% { transform: translate(-108%,-3%) rotate(-27deg) scale(.72); }
+  68% { transform: translate(-42%,-3%) rotate(-14deg) scale(.72); }
+  76% { transform: translate(-103%,23%) rotate(-26deg) scale(.72); }
+  86% { transform: translate(-39%,23%) rotate(-13deg) scale(.72); }
+  94% { transform: translate(-74%,40%) rotate(-21deg) scale(.76); }
+  100% { transform: translate(28%,25%) rotate(5deg) scale(.8); }
+}
+/* The quill is a ceremonial title-writing interaction, not a content gate.
+   Readers who keep scrolling must still reach the research data, contents and
+   excerpts without having to discover or activate the pen first. */
+.thesis-tableau-space,
+.thesis-research-board,
+.thesis-archive-board {
+  transition: opacity .9s ease, transform 1.1s cubic-bezier(.18,.78,.2,1);
+}
+html.thesis-intro-focus .cat-sticky { opacity: 0 !important; transition: opacity .38s ease; }
+
+@media (max-width: 760px) {
+  .index-reach-cat { left: -34px; bottom: -8px; width: clamp(185px,48vw,275px); }
+  .thesis-intro-scroll { height: 178vh; min-height: 1080px; }
+  .thesis-intro-scroll .thesis-title-composition { min-height: 590px; }
+  .thesis-intro-scroll .thesis-title-panel { width: 94%; max-height: 82vh; padding: 27px 22px; }
+  .thesis-intro-scroll .quill-trigger { width: clamp(245px,76vw,350px); }
+  .thesis-intro-scroll .quill-prompt { top: calc(50% + 150px); font-size: 16px; }
+  .thesis-intro-scroll .ink-bottle { left: 15px; bottom: 72px; width: 102px; }
+  .thesis-project.is-open .thesis-title-panel > .thesis-topic-tags { animation-delay: 7.4s; }
+  @keyframes thesisQuillWrite {
+    0% { transform: translate(-50%,-50%) rotate(-5deg) scale(.92); }
+    10% { transform: translate(-103%,18%) rotate(-29deg) scale(.66); }
+    18% { transform: translate(-88%,0) rotate(-19deg) scale(.68); }
+    28% { transform: translate(-108%,-46%) rotate(-28deg) scale(.58); }
+    41% { transform: translate(-38%,-46%) rotate(-14deg) scale(.58); }
+    53% { transform: translate(-104%,-17%) rotate(-27deg) scale(.58); }
+    66% { transform: translate(-36%,-17%) rotate(-13deg) scale(.58); }
+    78% { transform: translate(-98%,13%) rotate(-25deg) scale(.58); }
+    90% { transform: translate(-35%,13%) rotate(-12deg) scale(.58); }
+    100% { transform: translate(8%,30%) rotate(4deg) scale(.66); }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .thesis-intro-scroll .quill-trigger { filter: drop-shadow(0 18px 18px rgba(41,23,43,.24)); transition: none; }
+  .thesis-intro-scroll .quill-prompt { transition: none; animation: none; }
+  .thesis-project.is-open .thesis-title-panel { animation-duration: .01ms; }
+  .thesis-intro-scroll .quill-station.is-writing .quill-trigger { animation-duration: .01ms; animation-delay: 0s; }
+}
+
+/* ========================================================================== */
+/* 6.3 continuity and interaction polish                                      */
+/* ========================================================================== */
+
+/* The embedded OFL script face is part of the page, so the thesis title keeps
+   its handwritten character on Windows, macOS and hosted previews alike. */
+.thesis-en {
+  font-family: var(--ornate) !important;
+  font-size: clamp(25px,2.15vw,35px) !important;
+  line-height: 1.02 !important;
+  letter-spacing: .012em !important;
+}
+
+/* Keep the complete halftone rose outside the irregular paper mask and away
+   from the heading.  It now overlaps the corner, not the word “简介”. */
+.thesis-intro-paper-wrap { overflow: visible; }
+.thesis-intro-rose {
+  left: -72px !important;
+  top: -76px !important;
+  width: 132px !important;
+  opacity: .86 !important;
+  transform: rotate(-10deg) !important;
+}
+.thesis-intro-paper h3 { position: relative; z-index: 4; }
+
+/* Before interaction the quill behaves like a gently suspended game object.
+   The writing timeline replaces this idle as soon as the visitor clicks. */
+.thesis-project.is-awaiting-ink .thesis-intro-scroll .quill-trigger {
+  animation: thesisQuillAwait 2.65s cubic-bezier(.4,0,.22,1) infinite;
+}
+@keyframes thesisQuillAwait {
+  0%,100% {
+    transform: translate(-50%,-50%) translateY(var(--quill-arrival-y)) scale(var(--quill-arrival-scale)) rotate(-5deg);
+  }
+  48% {
+    transform: translate(-50%,-50%) translateY(calc(var(--quill-arrival-y) - 13px)) scale(calc(var(--quill-arrival-scale) + .018)) rotate(-2.5deg);
+  }
+}
+.thesis-project.is-awaiting-ink .thesis-intro-scroll .quill-trigger:hover,
+.thesis-project.is-awaiting-ink .thesis-intro-scroll .quill-trigger:focus-visible {
+  animation-play-state: paused;
+}
+
+@media (max-width: 760px) {
+  .index-cat-status { left: 142px; bottom: 42px; width: 162px; }
+  .index-cat-status span { font-size: 9px; }
+  .thesis-en { font-size: clamp(22px,6.3vw,29px) !important; }
+  .thesis-intro-rose { left: -42px !important; top: -58px !important; width: 105px !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .index-reach-cat,
+  .index-cat-status em,
+  .thesis-project.is-awaiting-ink .thesis-intro-scroll .quill-trigger { animation: none !important; }
+}

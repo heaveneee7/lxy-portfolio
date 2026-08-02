@@ -1,4 +1,4 @@
-# 李馨月｜求职作品集 5.0（本地预览）
+# LXY's Portfolio｜李馨月求职作品集 6.0
 
 这是李馨月用于求职展示的个人作品集网站，包含内容策划、新闻采写、融合媒体影像、社会调研、视觉表达与 Blender 学习档案。
 
@@ -24,3 +24,5 @@ npm run build:github
 ```
 
 推送至 `main` 分支后，GitHub Actions 会自动构建并发布 GitHub Pages。
+
+线上访问：<https://heaveneee7.github.io/lxy-portfolio/>
